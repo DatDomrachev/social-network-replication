@@ -1,0 +1,63 @@
+groups:
+  - name: dashboard_compatibility
+    interval: 5s
+    rules:
+      # ---- UPTIME: дашборд ждёт node_boot_time (без _seconds)
+      - record: node_boot_time
+        expr: node_boot_time_seconds
+
+      # ---- LOAD: дашборд использует node_cpu и node_load1
+      - record: node_cpu
+        expr: node_cpu_seconds_total
+      # node_load1 у node-exporter уже есть
+
+      # ---- MEMORY: дашборд ждёт старые имена без _bytes
+      - record: node_memory_MemTotal
+        expr: node_memory_MemTotal_bytes
+      - record: node_memory_MemAvailable
+        expr: node_memory_MemAvailable_bytes
+      - record: node_memory_MemFree
+        expr: node_memory_MemFree_bytes
+      - record: node_memory_Buffers
+        expr: node_memory_Buffers_bytes
+      - record: node_memory_Inactive
+        expr: node_memory_Inactive_bytes
+      - record: node_memory_KernelStack
+        expr: node_memory_KernelStack_bytes
+      - record: node_memory_Active
+        expr: node_memory_Active_bytes
+      - record: node_memory_SwapTotal
+        expr: node_memory_SwapTotal_bytes
+      - record: node_memory_SwapFree
+        expr: node_memory_SwapFree_bytes
+
+      # ---- FILESYSTEM: дашборд ожидает без _bytes и фокусируется на ext4/xfs;
+      # а для панели "Used Disk Space" ждёт fstype="aufs" -> эмулируем для mountpoint="/"
+      - record: node_filesystem_size
+        expr: node_filesystem_size_bytes
+      - record: node_filesystem_free
+        expr: node_filesystem_free_bytes
+      - record: node_filesystem_avail
+        expr: node_filesystem_avail_bytes
+
+      # "aufs"-совместимость ТОЛЬКО для корня (панель Used Disk Space)
+      - record: node_filesystem_size
+        labels:
+          fstype: aufs
+        expr: label_replace(
+                node_filesystem_size_bytes{mountpoint="/"},
+                "fstype","aufs","fstype",".*"
+              )
+      - record: node_filesystem_free
+        labels:
+          fstype: aufs
+        expr: label_replace(
+                node_filesystem_free_bytes{mountpoint="/"},
+                "fstype","aufs","fstype",".*"
+              )
+
+      # ---- DISK I/O: панель сама делает rate(); даём счётчики как есть
+      - record: node_disk_bytes_read
+        expr: node_disk_read_bytes_total
+      - record: node_disk_bytes_written
+        expr: node_disk_written_bytes_total

@@ -1,0 +1,454 @@
+{
+    "info": {
+      "name": "Social Network Microservices API",
+      "description": "API для тестирования социальной сети с выделенным Dialog Service",
+      "version": "2.0.0"
+    },
+    "variable": [
+      {
+        "key": "monolith_url",
+        "value": "http://localhost:8080",
+        "type": "string"
+      },
+      {
+        "key": "dialog_service_url",
+        "value": "http://localhost:8081",
+        "type": "string"
+      },
+      {
+        "key": "auth_token",
+        "value": "",
+        "type": "string"
+      },
+      {
+        "key": "user_id",
+        "value": "",
+        "type": "string"
+      },
+      {
+        "key": "friend_id",
+        "value": "",
+        "type": "string"
+      }
+    ],
+    "item": [
+      {
+        "name": "Health Checks",
+        "item": [
+          {
+            "name": "Monolith Health",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{monolith_url}}/health",
+                "host": ["{{monolith_url}}"],
+                "path": ["health"]
+              }
+            }
+          },
+          {
+            "name": "Dialog Service Health (Direct)",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{dialog_service_url}}/health",
+                "host": ["{{dialog_service_url}}"],
+                "path": ["health"]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "Setup Users",
+        "item": [
+          {
+            "name": "Register User 1 (Alice)",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "if (pm.response.code === 200) {",
+                    "    const response = pm.response.json();",
+                    "    pm.collectionVariables.set('user_id', response.user_id);",
+                    "    console.log('Alice ID:', response.user_id);",
+                    "}"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"first_name\": \"Иван\",\n  \"second_name\": \"Иванов\",\n  \"birthdate\": \"1990-03-15\",\n  \"biography\": \"Frontend разработчик\",\n  \"city\": \"Москва\",\n  \"password\": \"alice123\"\n}"
+              },
+              "url": {
+                "raw": "{{monolith_url}}/user/register",
+                "host": ["{{monolith_url}}"],
+                "path": ["user", "register"]
+              }
+            }
+          },
+          {
+            "name": "Register User 2 (Bob)",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "if (pm.response.code === 200) {",
+                    "    const response = pm.response.json();",
+                    "    pm.collectionVariables.set('friend_id', response.user_id);",
+                    "    console.log('Bob ID:', response.user_id);",
+                    "}"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"first_name\": \"Петр\",\n  \"second_name\": \"Петров\",\n  \"birthdate\": \"1988-07-20\",\n  \"biography\": \"Backend разработчик\",\n  \"city\": \"Санкт-Петербург\",\n  \"password\": \"bob456\"\n}"
+              },
+              "url": {
+                "raw": "{{monolith_url}}/user/register",
+                "host": ["{{monolith_url}}"],
+                "path": ["user", "register"]
+              }
+            }
+          },
+          {
+            "name": "Login as Ivan",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "if (pm.response.code === 200) {",
+                    "    const response = pm.response.json();",
+                    "    pm.collectionVariables.set('auth_token', response.token);",
+                    "    console.log('Ivan token:', response.token);",
+                    "}"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"id\": \"{{user_id}}\",\n  \"password\": \"alice123\"\n}"
+              },
+              "url": {
+                "raw": "{{monolith_url}}/login",
+                "host": ["{{monolith_url}}"],
+                "path": ["login"]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "Dialog Test",
+        "item": [
+          {
+            "name": "Send Message via Monolith (Proxied to Dialog Service)",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"text\": \"Привет! Это сообщение отправлено через монолит, но обрабатывается микросервисом диалогов\"\n}"
+              },
+              "url": {
+                "raw": "{{monolith_url}}/dialog/{{friend_id}}/send",
+                "host": ["{{monolith_url}}"],
+                "path": ["dialog", "{{friend_id}}", "send"]
+              }
+            }
+          },
+          {
+            "name": "Send Another Message via Monolith",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"text\": \"Как дела?\"\n}"
+              },
+              "url": {
+                "raw": "{{monolith_url}}/dialog/{{friend_id}}/send",
+                "host": ["{{monolith_url}}"],
+                "path": ["dialog", "{{friend_id}}", "send"]
+              }
+            }
+          },
+          {
+            "name": "Get Dialog History via Monolith (Proxied)",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "url": {
+                "raw": "{{monolith_url}}/dialog/{{friend_id}}/list",
+                "host": ["{{monolith_url}}"],
+                "path": ["dialog", "{{friend_id}}", "list"]
+              }
+            }
+          },
+          {
+            "name": "Call to Dialog Service (Should Fail - No Auth)",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"text\": \"прямой вызов к микросервису без аутентификации\"\n}"
+              },
+              "url": {
+                "raw": "{{dialog_service_url}}/dialog/{{friend_id}}/send",
+                "host": ["{{dialog_service_url}}"],
+                "path": ["dialog", "{{friend_id}}", "send"]
+              }
+            }
+          },
+          {
+            "name": "Call to Dialog Service (With X-User-ID)",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-User-ID",
+                  "value": "{{user_id}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"text\": \"прямой вызов к микросервису с правильным заголовком X-User-ID\"\n}"
+              },
+              "url": {
+                "raw": "{{dialog_service_url}}/dialog/{{friend_id}}/send",
+                "host": ["{{dialog_service_url}}"],
+                "path": ["dialog", "{{friend_id}}", "send"]
+              }
+            }
+          },
+          {
+            "name": "Get All User Dialogs (Dialog Service Only)",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "X-User-ID",
+                  "value": "{{user_id}}"
+                }
+              ],
+              "url": {
+                "raw": "{{dialog_service_url}}/dialogs",
+                "host": ["{{dialog_service_url}}"],
+                "path": ["dialogs"]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "Other Features (Monolith Only)",
+        "item": [
+          {
+            "name": "Get User Profile",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{monolith_url}}/user/get/{{user_id}}",
+                "host": ["{{monolith_url}}"],
+                "path": ["user", "get", "{{user_id}}"]
+              }
+            }
+          },
+          {
+            "name": "Search Users",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{monolith_url}}/user/search?first_name=Ali&last_name=Jo",
+                "host": ["{{monolith_url}}"],
+                "path": ["user", "search"],
+                "query": [
+                  {
+                    "key": "first_name",
+                    "value": "Ali"
+                  },
+                  {
+                    "key": "last_name",
+                    "value": "Jo"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "Add Friend",
+            "request": {
+              "method": "PUT",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                }
+              ],
+              "url": {
+                "raw": "{{monolith_url}}/friend/set/{{friend_id}}",
+                "host": ["{{monolith_url}}"],
+                "path": ["friend", "set", "{{friend_id}}"]
+              }
+            }
+          },
+          {
+            "name": "Create Post",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{auth_token}}"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"text\": \"Первый пост в микросервисный чат.\"\n}"
+              },
+              "url": {
+                "raw": "{{monolith_url}}/post/create",
+                "host": ["{{monolith_url}}"],
+                "path": ["post", "create"]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "Architecture Verification",
+        "item": [
+          {
+            "name": "Verify Monolith Health + Dialog Service Status",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test('Monolith is healthy', function () {",
+                    "    pm.response.to.have.status(200);",
+                    "    const response = pm.response.json();",
+                    "    pm.expect(response.status).to.eql('ok');",
+                    "});",
+                    "",
+                    "pm.test('Dialog Service is accessible from Monolith', function () {",
+                    "    const response = pm.response.json();",
+                    "    pm.expect(response.dialog_service_status).to.eql('ok');",
+                    "});"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{monolith_url}}/health",
+                "host": ["{{monolith_url}}"],
+                "path": ["health"]
+              }
+            }
+          },
+          {
+            "name": "Verify Dialog Service Independence",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test('Dialog Service is independent', function () {",
+                    "    pm.response.to.have.status(200);",
+                    "    const response = pm.response.json();",
+                    "    pm.expect(response.service).to.eql('dialog-service');",
+                    "    pm.expect(response.status).to.eql('ok');",
+                    "});"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{dialog_service_url}}/health",
+                "host": ["{{dialog_service_url}}"],
+                "path": ["health"]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }

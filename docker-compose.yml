@@ -1,0 +1,194 @@
+services:
+  etcd:
+    image: gcr.io/etcd-development/etcd:v3.5.0
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    command: >
+      etcd
+      --name etcd0
+      --listen-client-urls http://0.0.0.0:2379
+      --advertise-client-urls http://etcd:2379
+      --listen-peer-urls http://0.0.0.0:2380
+      --initial-advertise-peer-urls http://etcd:2380
+      --initial-cluster etcd0=http://etcd:2380
+      --initial-cluster-token token-01
+      --initial-cluster-state new
+    restart: unless-stopped
+
+  postgres-master:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: social_network
+    ports:
+      - "5435:5432"
+    volumes:
+      - master_data:/var/lib/postgresql/data
+      - ./initdb/10-initdb-listen.sh:/docker-entrypoint-initdb.d/10-initdb-listen.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=password pg_isready -h 127.0.0.1 -p 5432 -U user -d postgres -q"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 90s
+    restart: unless-stopped
+
+  postgres-slave1:
+    image: postgres:15
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      PGAPPNAME: slave1
+    ports:
+      - "5436:5432"
+    volumes:
+      - slave1_data:/var/lib/postgresql/data
+      - ./setup-replica.sh:/setup-replica.sh:ro
+    entrypoint: ["/bin/bash", "/setup-replica.sh"]
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=password pg_isready -h 127.0.0.1 -p 5432 -U user -d postgres -q"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
+  postgres-slave2:
+    image: postgres:15
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      PGAPPNAME: slave2
+    ports:
+      - "5437:5432"
+    volumes:
+      - slave2_data:/var/lib/postgresql/data
+      - ./setup-replica.sh:/setup-replica.sh:ro
+    entrypoint: ["/bin/bash", "/setup-replica.sh"]
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=password pg_isready -h 127.0.0.1 -p 5432 -U user -d postgres -q"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/snap/docker/common/var-lib-docker:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "8082:8080"
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    environment:
+      DATA_SOURCE_NAME: "postgresql://user:password@postgres-master:5432/social_network?sslmode=disable"
+    ports:
+      - "9187:9187"
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    privileged: true
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)'
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./dashboard_compat.yml:/etc/prometheus/dashboard_compat.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    depends_on:
+      - cadvisor
+      - postgres-exporter
+      - node-exporter
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  dialog-service:
+    build:
+      context: ./dialog-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  monolith:
+    build:
+      context: ./monolith
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DIALOG_SERVICE_URL=http://dialog-service:8081
+      - MASTER_DB_URL=postgresql://user:password@postgres-master:5432,postgres-slave2:5432/social_network?sslmode=disable&target_session_attrs=read-write&connect_timeout=5
+      - SLAVE_DB_URL=postgresql://user:password@postgres-slave1:5432/social_network?sslmode=disable
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+      dialog-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  master_data:
+  slave1_data:
+  slave2_data:
+  grafana_data:
