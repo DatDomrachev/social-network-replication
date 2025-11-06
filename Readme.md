@@ -5,37 +5,43 @@
 read/write separation в монолите, тестовая таблица logs для нагрузки на запись.
 
 ## Структура проекта
-
-├── monolith/                # Основное приложение (эндпоинты /user/get и /user/search)
-│   ├── main.go              # Основной код приложения (master/slave DB)
-│   ├── go.mod               # Зависимости Go
-│   ├── go.sum               # Зависимости Go
-│   ├── Dockerfile           # Сборка образа монолита
-│   └── people.v2.csv.zip    # Данные для генерации пользователей (разархивировать при необходимости)'
-├── dialog-service/          # Директория микросервиса диалогов
-│   ├── main.go              # Код Dialog Service
-│   ├── go.mod               # Зависимости Go
-│   ├── go.sum               # Зависимости Go
-│   └── Dockerfile           # Сборка образа микросервиса'
-├── setup-replica.sh         # Автоматическая настройка реплик (pg_basebackup + primary_conninfo)
-├── go.mod                   # Зависимости Go
-├── go.sum                   # Зависимости Go
-├── prometheus.yml           # Конфигурация Prometheus
-├── grafana-datasources.yml  # Источники данных Grafana
-├── grafana-dashboards.yml   # Дашборды Grafana
-├── dashboard.json           # Готовый JSON-дашборд Grafana
-├── dashboard_compat.yml     # Совместимость метрик с node-exporter
-├── wrk_mix.lua              # Скрипт нагрузки (50/50 get/search)
-├── REPORT.md                # Отчёт по проделанной работе
-├── Readme.md                # Основная документация проекта
-├── wrk_read_mix.lua         # Lua - скрипт нагрузочного тестирования чтения (эксперимент 1)
-├── insert_logs.go           # Go - скрипт нагрузочного тестирования записи (экмперимент 2)
-├── failover.sh              # Скрипт для остановки master, промоута slave2 до мастера и подключения к нему slave1
-├── reset_db_cluster.sh      # Скрипт для восстановления PG кластера к изначальному состоянию
+```
+├── monolith/                      # Основное приложение (эндпоинты /user/get и /user/search)
+│   ├── main.go                    # Основной код приложения (master/slave DB)
+│   ├── go.mod                     # Зависимости Go
+│   ├── go.sum                     # Контрольные суммы зависимостей
+│   ├── Dockerfile                 # Сборка образа монолита
+│   └── people.v2.csv.zip          # Данные для генерации пользователей (разархивировать при необходимости)
+│
+├── dialog-service/                # Микросервис диалогов
+│   ├── main.go                    # Код Dialog Service
+│   ├── go.mod                     # Зависимости Go
+│   ├── go.sum                     # Контрольные суммы зависимостей
+│   └── Dockerfile                 # Сборка микросервиса
+│
 ├── initdb/
-│   └── 10-initdb-listen.sh  # Скрипт подготовки конфигурации postgresql.conf и pg_hba.conf
-└── postman/                 # Коллекции для тестирования
-    └── microservices.json   # Тесты
+│   └── 10-initdb-listen.sh        # Скрипт подготовки конфигурации postgresql.conf и pg_hba.conf
+│
+├── setup-replica.sh               # Автоматическая настройка реплик (pg_basebackup + primary_conninfo)
+├── failover.sh                    # Скрипт для остановки мастера, промоута slave2 и переподключения slave1
+├── reset_db_cluster.sh            # Скрипт полного восстановления кластера PostgreSQL
+│
+├── insert_logs.go                 # Go-скрипт нагрузочного тестирования записи (Эксперимент 2)
+├── wrk_read_mix.lua               # Lua-скрипт нагрузочного тестирования чтения (Эксперимент 1)
+├── wrk_mix.lua                    # Lua-скрипт комбинированной нагрузки (50/50 get/search)
+│
+├── prometheus.yml                 # Конфигурация Prometheus
+├── grafana-datasources.yml        # Источники данных Grafana
+├── grafana-dashboards.yml         # Дашборды Grafana
+├── dashboard.json                 # JSON-дашборд Grafana
+├── dashboard_compat.yml           # Совместимость метрик с node-exporter
+│
+├── REPORT.md                      # Отчёт по проделанной работе
+├── Readme.md                      # Основная документация проекта
+│
+└── postman/                       # Коллекции для тестирования API
+    └── microservices.json         # Тесты Postman
+
 ```
 
 ## Запуск
@@ -218,3 +224,4 @@ services:
     image: DatDomrachev/dialog-service:v1.0
     # ...
 ```
+
