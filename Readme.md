@@ -36,7 +36,6 @@ read/write separation в монолите, тестовая таблица logs 
 ├── dashboard.json                 # JSON-дашборд Grafana
 ├── dashboard_compat.yml           # Совместимость метрик с node-exporter
 │
-├── REPORT.md                      # Отчёт по проделанной работе
 ├── Readme.md                      # Основная документация проекта
 │
 └── postman/                       # Коллекции для тестирования API
@@ -224,4 +223,5 @@ services:
     image: DatDomrachev/dialog-service:v1.0
     # ...
 ```
+
 
