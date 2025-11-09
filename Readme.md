@@ -58,7 +58,7 @@ docker compose up -d --build
 curl http://localhost:8080/health  # Монолит
 curl http://localhost:8081/health  # Dialog Service
 
-# Проверь репликацию (на master psql)
+# Проверка репликации (на master psql)
 docker exec -it postgres-master psql -U user -d social_network -c "SELECT * FROM pg_stat_replication;"
 
 # 4. Генерация данных (1M пользователей на master)
@@ -148,7 +148,6 @@ curl "http://localhost:8080/user/search?first_name=И&second_name=Абр"
 
 # Insert log
 curl -X POST http://localhost:8080/log/insert \
-  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"data":"Test data"}'
 ```
@@ -223,5 +222,6 @@ services:
     image: DatDomrachev/dialog-service:v1.0
     # ...
 ```
+
 
 
